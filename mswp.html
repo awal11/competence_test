@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minesweeper Board</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Trebuchet MS", sans-serif;
+        background: #e9f1ed;
+        color: #243631;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px 12px;
+        background: repeating-linear-gradient(0deg, transparent 0 31px, #dce9e2 32px), #e9f1ed;
+      }
+
+      main { width: min(100%, 540px); }
+
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0 0 5px;
+        font: bold clamp(26px, 6vw, 36px) Georgia, serif;
+      }
+
+      p { margin: 0; font-size: 13px; color: #51675e; }
+
+      form {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        align-items: end;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      label { font-size: 13px; font-weight: bold; }
+
+      input {
+        display: block;
+        width: 100%;
+        margin-top: 5px;
+        padding: 9px 10px;
+        border: 1px solid #acc3b6;
+        border-radius: 4px;
+        background: #fff;
+        color: #243631;
+        font: 15px "Trebuchet MS", sans-serif;
+      }
+
+      input:focus-visible { outline: 3px solid #db8a30; outline-offset: 2px; }
+
+      @media (max-width: 400px) {
+        form { grid-template-columns: 1fr 1fr; }
+        button { grid-column: 1 / -1; }
+      }
+
+      button {
+        flex-shrink: 0;
+        padding: 10px 14px;
+        border: 1px solid #265e51;
+        border-radius: 4px;
+        background: #265e51;
+        color: #fff;
+        font: bold 13px "Trebuchet MS", sans-serif;
+        cursor: pointer;
+      }
+
+      button:hover { background: #19483e; }
+      button:focus-visible { outline: 3px solid #db8a30; outline-offset: 3px; }
+
+      #board {
+        display: grid;
+        grid-template-columns: 22px repeat(var(--size), minmax(0, 1fr));
+        grid-template-rows: 22px repeat(var(--size), minmax(0, 1fr));
+        gap: 3px;
+        padding: 8px 33px 33px 8px;
+        aspect-ratio: 1;
+        border: 1px solid #acc3b6;
+        border-radius: 6px;
+        background: #b7cabe;
+        box-shadow: 0 10px 24px #2450411a;
+      }
+
+      .coordinate {
+        display: grid;
+        place-items: center;
+        min-width: 0;
+        color: #63796d;
+        font-size: clamp(9px, 2.5vw, 12px);
+        line-height: 1;
+      }
+
+      .cell {
+        display: grid;
+        place-items: center;
+        align-self: center;
+        aspect-ratio: 1;
+        min-width: 0;
+        min-height: 0;
+        border-radius: 2px;
+        background: #f8faf5;
+        font-size: clamp(13px, 4vw, 22px);
+        font-weight: bold;
+        line-height: 1;
+      }
+
+      .bomb { background: #eac4a9; color: #553a2c; }
+      .n1 { color: #22679a; }
+      .n2 { color: #267447; }
+      .n3 { color: #ba4a35; }
+      .n4 { color: #714e9c; }
+      .n5, .n6, .n7, .n8 { color: #554536; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Minesweeper</h1>
+          <p id="summary">10 x 10 grid &middot; 30 bombs</p>
+        </div>
+      </header>
+      <div id="board" role="grid" aria-label="Minesweeper board, all bombs visible"></div>
+      <form id="settings">
+        <label for="size">Side length
+          <input id="size" type="number" min="2" max="20" step="1" value="10" required />
+        </label>
+        <label for="bombs">Bombs
+          <input id="bombs" type="number" min="1" max="99" step="1" value="30" required />
+        </label>
+        <button type="submit">New board</button>
+      </form>
+    </main>
+    <script>
+      const boardElement = document.getElementById('board');
+      const sizeInput = document.getElementById('size');
+      const bombInput = document.getElementById('bombs');
+
+      function countAdjacentBombs(cells, size) {
+        cells.forEach((cell, index) => {
+          if (cell.bomb) return;
+
+          const row = Math.floor(index / size);
+          const column = index % size;
+          for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
+            for (let columnOffset = -1; columnOffset <= 1; columnOffset++) {
+              const neighborRow = row + rowOffset;
+              const neighborColumn = column + columnOffset;
+              if (neighborRow >= 0 && neighborRow < size && neighborColumn >= 0 && neighborColumn < size &&
+                  cells[neighborRow * size + neighborColumn].bomb) {
+                cell.count++;
+              }
+            }
+          }
+        });
+      }
+
+      function makeBoard(size, bombCount) {
+        const cells = Array.from({ length: size * size }, () => ({ bomb: false, count: 0 }));
+        const positions = Array.from({ length: cells.length }, (_, index) => index);
+
+        for (let index = positions.length - 1; index > 0; index--) {
+          const randomIndex = Math.floor(Math.random() * (index + 1));
+          [positions[index], positions[randomIndex]] = [positions[randomIndex], positions[index]];
+        }
+
+        for (const position of positions.slice(0, bombCount)) {
+          cells[position].bomb = true;
+        }
+
+        countAdjacentBombs(cells, size);
+        return cells;
+      }
+
+      function drawBoard(size, bombCount) {
+        const cells = makeBoard(size, bombCount);
+        const tiles = document.createDocumentFragment();
+
+        for (let column = -1; column < size; column++) {
+          const label = document.createElement('span');
+          label.className = 'coordinate';
+          label.setAttribute('aria-hidden', 'true');
+          if (column >= 0) label.textContent = String.fromCharCode(65 + column);
+          tiles.appendChild(label);
+        }
+
+        cells.forEach((cell, index) => {
+          if (index % size === 0) {
+            const label = document.createElement('span');
+            label.className = 'coordinate';
+            label.setAttribute('aria-hidden', 'true');
+            label.textContent = Math.floor(index / size) + 1;
+            tiles.appendChild(label);
+          }
+
+          const tile = document.createElement('div');
+          tile.className = 'cell';
+          tile.setAttribute('role', 'gridcell');
+          tile.setAttribute('aria-label', `${String.fromCharCode(65 + index % size)}${Math.floor(index / size) + 1}: ${cell.bomb ? 'bomb' : cell.count + ' adjacent bombs'}`);
+
+          if (cell.bomb) {
+            tile.classList.add('bomb');
+            tile.textContent = '*';
+          } else if (cell.count > 0) {
+            tile.classList.add(`n${cell.count}`);
+            tile.textContent = cell.count;
+          }
+
+          tiles.appendChild(tile);
+        });
+
+        boardElement.style.setProperty('--size', size);
+        boardElement.setAttribute('aria-label', `${size} by ${size} Minesweeper board, ${bombCount} bombs visible`);
+        document.getElementById('summary').textContent = `${size} x ${size} grid · ${bombCount} bombs`;
+        boardElement.replaceChildren(tiles);
+      }
+
+      sizeInput.addEventListener('input', () => {
+        if (sizeInput.checkValidity()) {
+          bombInput.max = Number(sizeInput.value) ** 2 - 1;
+          if (Number(bombInput.value) > Number(bombInput.max)) bombInput.value = bombInput.max;
+        }
+      });
+
+      document.getElementById('settings').addEventListener('submit', (event) => {
+        event.preventDefault();
+        drawBoard(Number(sizeInput.value), Number(bombInput.value));
+      });
+
+      drawBoard(Number(sizeInput.value), Number(bombInput.value));
+    </script>
+  </body>
+</html>
